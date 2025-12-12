@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Tracker Pro 2025</title>
+<style>
+/* ===============================
+   REGOLE GLOBALI
+=============================== */
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+/* HSL GLOBALI */
+:root{
+    --h-main: 210;
+    --s-main: 80%;
+    --l-main: 55%;
+
+    --h-hover: 210;
+    --s-hover: 90%;
+    --l-hover: 50%;
+}
+
+body{
+    height:100vh;
+    background:#111;
+    overflow:hidden;
+}
+
+/* ===============================
+   BLUR SCREEN + POPUP
+=============================== */
+#blur-bg{
+    position:fixed;
+    inset:0;
+    backdrop-filter:blur(18px);
+    background:rgba(0,0,0,0.4);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:10;
+}
+
+#api-popup{
+    width:380px;
+    padding:24px;
+    background:white;
+    border-radius:16px;
+    border:3px solid hsl(var(--h-main), var(--s-main), var(--l-main));
+    box-shadow:0 0 30px rgba(0,0,0,0.35);
+    animation:pop .4s ease;
+}
+@keyframes pop{
+    from{ transform:scale(.7); opacity:0; }
+    to{ transform:scale(1); opacity:1; }
+}
+
+#api-input{
+    width:100%;
+    padding:12px;
+    margin-top:10px;
+    font-size:16px;
+    border-radius:10px;
+    border:2px solid hsl(var(--h-main),40%,70%);
+}
+
+#open-btn{
+    margin-top:15px;
+    width:100%;
+    padding:12px;
+    border:none;
+    background:hsl(var(--h-main), var(--s-main), var(--l-main));
+    color:white;
+    border-radius:10px;
+    font-size:17px;
+    cursor:pointer;
+    transition:.2s;
+}
+#open-btn:hover{
+    background:hsl(var(--h-hover), var(--s-hover), var(--l-hover));
+}
+
+/* Loader */
+#loading-box{
+    display:none;
+    margin-top:10px;
+    text-align:center;
+}
+
+.spinner{
+    margin:10px auto;
+    width:35px;
+    height:35px;
+    border:4px solid #ccc;
+    border-top:4px solid hsl(var(--h-main), var(--s-main), var(--l-main));
+    border-radius:50%;
+    animation:spin .8s linear infinite;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+/* ===============================
+   APP GUI
+=============================== */
+#app{
+    width:100%;
+    height:100%;
+    display:none;
+}
+
+#container{
+    width:100%;
+    height:100%;
+    display:flex;
+}
+
+/* StreetView */
+#streetview{
+    flex:1;
+    position:relative;
+}
+
+/* Right panel */
+#right-panel{
+    width:380px;
+    background:#f9f9f9;
+    padding:12px;
+    border-left:3px solid hsl(var(--h-main), var(--s-main), var(--l-main));
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    overflow-y:auto;
+}
+
+.search-box input{
+    width:100%;
+    padding:10px;
+    border-radius:8px;
+    border:2px solid hsl(var(--h-main), 30%, 70%);
+}
+
+/* search button */
+#search-btn{
+    width:100%;
+    padding:10px;
+    background:hsl(var(--h-main), var(--s-main), var(--l-main));
+    color:white;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    transition:.2s;
+}
+#search-btn:hover{
+    background:hsl(var(--h-hover), var(--s-hover), var(--l-hover));
+}
+
+/* map satellite */
+#map{
+    width:100%;
+    height:300px;
+    border-radius:10px;
+    margin-top:7px;
+    overflow:hidden;
+}
+
+/* ===============================
+   VOICE UI
+=============================== */
+#voice-btn{
+    position:absolute;
+    top:10px;
+    right:10px;
+    padding:10px 16px;
+    background:rgba(255,255,255,0.7);
+    border-radius:50px;
+    cursor:pointer;
+    opacity:.25;
+    font-size:24px;
+    transition:.25s;
+    z-index:20;
+}
+#voice-btn:hover{ opacity:1; }
+
+/* Animazione ascolto */
+#voice-visual{
+    position:absolute;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    width:200px;
+    height:40px;
+    display:none;
+    justify-content:center;
+    align-items:center;
+    gap:6px;
+    z-index:20;
+}
+.bar{
+    width:8px;
+    height:20px;
+    background:hsl(var(--h-main), var(--s-main), var(--l-main));
+    animation:bars 0.6s infinite ease-in-out;
+}
+.bar:nth-child(2){ animation-delay:.1s; }
+.bar:nth-child(3){ animation-delay:.2s; }
+.bar:nth-child(4){ animation-delay:.3s; }
+@keyframes bars{
+    0%{ height:10px; }
+    50%{ height:30px; }
+    100%{ height:10px; }
+}
+</style>
+</head>
+<body>
+
+
+<!-- ==========================================================
+     POPUP API + BLUR
+=========================================================== -->
+<div id="blur-bg">
+    <div id="api-popup">
+        <h3>Inserisci API Google Maps</h3>
+        <input id="api-input" placeholder="API qui..." />
+
+        <label style="margin-top:10px; display:block;">
+            <input type="checkbox" id="remember"> Ricordati la mia API
+        </label>
+
+        <button id="open-btn">Apri</button>
+
+        <div id="loading-box">
+            <div class="spinner"></div>
+            <div>Convalidazione in corso...</div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ==========================================================
+     APP
+=========================================================== -->
+<div id="app">
+
+    <!-- Voice button -->
+    <div id="voice-btn">🔈</div>
+
+    <!-- Animazione ascolto -->
+    <div id="voice-visual">
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+    </div>
+
+    <div id="container">
+        <div id="streetview"></div>
+        <div id="right-panel">
+            
+            <h2 style="color:hsl(var(--h-main), var(--s-main), var(--l-main));">
+                Tracker Pro 2025
+            </h2>
+
+            <h3>Ricerca percorso</h3>
+
+            <div class="search-box">
+                <label>Da:</label>
+                <input id="from" value="Roma">
+            </div>
+
+            <div class="search-box">
+                <label>A:</label>
+                <input id="to" value="Milano">
+            </div>
+
+            <button id="search-btn">Cerca percorso</button>
+
+            <h3>Vista Satellitare</h3>
+            <div id="map"></div>
+
+        </div>
+    </div>
+</div>
+
+
+<script>
+/* ======================================================================
+   SINTESI VOCALE
+====================================================================== */
+let voiceOn = false;
+
+function speak(t){
+    if(!voiceOn) return;
+    const u = new SpeechSynthesisUtterance(t);
+    speechSynthesis.speak(u);
+}
+
+document.getElementById("voice-btn").onclick = ()=>{
+    voiceOn = !voiceOn;
+    document.getElementById("voice-btn").textContent = voiceOn ? "🔇" : "🔈";
+    if(voiceOn) speak("Assistente vocale attivato.");
+    else speechSynthesis.cancel();
+};
+
+/* ======================================================================
+   WAKE WORD: "Oi Tracker"
+====================================================================== */
+let recognition;
+let listening = false;
+
+function startRecognizer(){
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SR){ alert("Il tuo browser non supporta SpeechRecognition."); return; }
+
+    recognition = new SR();
+    recognition.lang = "it-IT";
+    recognition.continuous = true;
+
+    recognition.onresult = (event)=>{
+        let text = event.results[event.resultIndex][0].transcript.trim().toLowerCase();
+
+        // WAKE WORD
+        if(text.includes("oi tracker")){
+            speak("Ti ascolto.");
+            showListening();
+
+        } else if(listening){
+            handleVoiceCommand(text);
+        }
+    };
+
+    recognition.start();
+}
+
+function showListening(){
+    listening = true;
+    document.getElementById("voice-visual").style.display = "flex";
+    setTimeout(()=>{ listening = false; document.getElementById("voice-visual").style.display = "none"; }, 5000);
+}
+
+/* ======================================================================
+   COMANDI VOCALI
+====================================================================== */
+function handleVoiceCommand(t){
+    console.log("Vocale:", t);
+
+    if(t.includes("vai a")){
+        let city = t.replace("vai a", "").trim();
+        document.getElementById("to").value = city;
+        searchRoute();
+        speak("Vado a " + city);
+    }
+
+    if(t.includes("mostra street") || t.includes("street view")){
+        speak("Ecco la vista strada.");
+        // già è visibile di default
+    }
+
+    if(t.includes("da")){
+        let parts = t.split("a");
+        if(parts.length===2){
+            let c1 = parts[0].replace("da", "").trim();
+            let c2 = parts[1].trim();
+            document.getElementById("from").value = c1;
+            document.getElementById("to").value = c2;
+            searchRoute();
+            speak(`Percorso da ${c1} a ${c2}`);
+        }
+    }
+}
+
+/* ======================================================================
+   VALIDAZIONE API
+====================================================================== */
+document.getElementById("open-btn").onclick = async()=>{
+    const api = document.getElementById("api-input").value.trim();
+    const loadBox = document.getElementById("loading-box");
+
+    if(api === ""){
+        alert("Inserisci una API.");
+        return;
+    }
+
+    loadBox.style.display="block";
+
+    try{
+        let res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=Roma&key=${api}`);
+        let data = await res.json();
+
+        if(data.status === "OK" || data.status === "ZERO_RESULTS"){
+            if(document.getElementById("remember").checked){
+                localStorage.setItem("gm_api", api);
+            }
+            loadMaps(api);
+        } else {
+            alert("API non valida: "+data.status);
+        }
+
+    }catch(e){
+        alert("Errore di rete.");
+    }
+
+    loadBox.style.display="none";
+};
+
+function loadMaps(api){
+    document.getElementById("blur-bg").style.display="none";
+    document.getElementById("app").style.display="block";
+
+    let s = document.createElement("script");
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${api}&callback=initApp&libraries=places`;
+    document.body.appendChild(s);
+
+    startRecognizer();
+}
+
+/* ======================================================================
+   GOOGLE MAPS + STREET VIEW
+====================================================================== */
+let map, panorama, dirService, dirRenderer;
+
+function initApp(){
+    panorama = new google.maps.StreetViewPanorama(
+        document.getElementById("streetview"),
+        {
+            position: {lat:41.9, lng:12.5},
+            pov:{heading:0, pitch:0},
+            zoom:1
+        }
+    );
+
+    map = new google.maps.Map(
+        document.getElementById("map"),
+        {
+            center:{lat:41.9, lng:12.5},
+            zoom:6,
+            mapTypeId:"satellite"
+        }
+    );
+
+    dirService = new google.maps.DirectionsService();
+    dirRenderer = new google.maps.DirectionsRenderer();
+    dirRenderer.setMap(map);
+
+    document.getElementById("search-btn").onclick = searchRoute;
+}
+
+function searchRoute(){
+    let from = document.getElementById("from").value;
+    let to = document.getElementById("to").value;
+
+    speak(`Cerco un percorso da ${from} a ${to}`);
+
+    dirService.route(
+        {
+            origin:from,
+            destination:to,
+            travelMode:"DRIVING"
+        },
+        (res, status)=>{
+            if(status==="OK"){
+                dirRenderer.setDirections(res);
+                let start = res.routes[0].legs[0].start_location;
+                panorama.setPosition(start);
+                speak("Percorso trovato.");
+            } else {
+                speak("Errore nel trovare il percorso.");
+                alert("Errore: "+status);
+            }
+        }
+    );
+}
+</script>
+
+</body>
+</html>
